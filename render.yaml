@@ -27,4 +27,3 @@ services:
 # SPRING_DATASOURCE_URL=jdbc:mysql://your-tidb-host:4000/diplomemmi?useSSL=true&serverTimezone=UTC
 # SPRING_DATASOURCE_USERNAME=your_user@your_cluster
 # SPRING_DATASOURCE_PASSWORD=your_password
-    ipAllowList: []
