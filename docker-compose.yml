@@ -1,0 +1,57 @@
+services:
+  db:
+    image: postgres:16
+    container_name: diplome-db
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: diplomemmi
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    networks:
+      - diplome-network
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: diplome-api
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/diplomemmi
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: password
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      APPLICATION_SECURITY_JWT_SECRET_KEY: 4503dc4b267eb0db9bbb3ef12f64335efeddf46ed53b3327ed7cc8a7020f2cec
+      APPLICATION_SECURITY_JWT_EXPIRATION: 86400000
+    ports:
+      - "8080:8080"
+    networks:
+      - diplome-network
+
+  front:
+    build:
+      context: ../front
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: http://localhost:8080/api
+    container_name: diplome-front
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "3000:80"
+    networks:
+      - diplome-network
+
+volumes:
+  db_data:
+
+networks:
+  diplome-network:
+    driver: bridge
