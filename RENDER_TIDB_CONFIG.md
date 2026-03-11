@@ -16,18 +16,37 @@ DATABASE: diplomemmi (créer si n'existe pas)
 
 ### 1️⃣ Créer la base de données sur TiDB Cloud
 
-Depuis MySQL client ou Workbench:
-```sql
-CREATE DATABASE IF NOT EXISTS diplomemmi;
-USE diplomemmi;
+**IMPORTANT** : Faire ceci AVANT de redéployer sur Render !
+
+#### Option A : Via MySQL client (CLI)
+```bash
+mysql -h gateway01.eu-central-1.prod.aws.tidbcloud.com \
+      -P 4000 \
+      -u 3T8f8xkasNvriRP.root \
+      -p \
+      -e "CREATE DATABASE IF NOT EXISTS diplomemmi;"
 ```
+
+#### Option B : Via GUI (Workbench, DataGrip, TablePlus, etc.)
+1. Connecter à TiDB Cloud
+2. Exécuter : `CREATE DATABASE IF NOT EXISTS diplomemmi;`
+
+#### Option C : Via TiDB Cloud Web Console
+1. Aller sur https://tidbcloud.com
+2. Cluster → SQL Editor
+3. Copier-coller : `CREATE DATABASE IF NOT EXISTS diplomemmi;`
+4. Exécuter
 
 ### 2️⃣ Whitelister l'IP de Render
 
 1. Aller sur [tidbcloud.com](https://tidbcloud.com)
-2. **Cluster** → **Settings** → **Networking**
-3. Ajouter IP pour Render (temporairement `0.0.0.0/0` pour tester)
-4. Appliquer
+2. **Cluster** → **Settings** → **Networking** → **IP Whitelist**
+3. Ajouter :
+   - **Pour tester** : `0.0.0.0/0` (temporaire)
+   - **En production** : L'IP publique de Render (voir plus bas)
+4. Appliquer / Save
+
+⚠️ **Important** : Sans whitelist, la connexion sera refusée !
 
 ### 3️⃣ Configurer Render
 
@@ -56,7 +75,13 @@ USE diplomemmi;
 
 ---
 
-## ✅ Vérifier que ça marche
+## ✅ Checklist avant redéploiement
+
+- [ ] Base de données `diplomemmi` créée sur TiDB
+- [ ] IP Render whitelistée sur TiDB (au minimum `0.0.0.0/0` pour test)
+- [ ] Variables d'environnement ajoutées sur Render
+- [ ] Vérifier que `SPRING_DATASOURCE_URL` contient le bon host/port
+- [ ] Vérifier que `SPRING_DATASOURCE_USERNAME` et `PASSWORD` sont corrects
 
 Une fois déployé :
 ```bash
