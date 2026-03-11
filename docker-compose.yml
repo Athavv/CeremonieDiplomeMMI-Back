@@ -1,16 +1,15 @@
 services:
   db:
-    image: postgres:16
+    image: mysql:8.0
     container_name: diplome-db
     restart: unless-stopped
     ports:
-      - "5432:5432"
+      - "3306:3306"
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: diplomemmi
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: diplomemmi
     volumes:
-      - db_data:/var/lib/postgresql/data
+      - db_data:/var/lib/mysql
     networks:
       - diplome-network
 
@@ -23,9 +22,9 @@ services:
     depends_on:
       - db
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/diplomemmi
-      SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: password
+      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/diplomemmi?createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true&useSSL=false
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       APPLICATION_SECURITY_JWT_SECRET_KEY: 4503dc4b267eb0db9bbb3ef12f64335efeddf46ed53b3327ed7cc8a7020f2cec
       APPLICATION_SECURITY_JWT_EXPIRATION: 86400000

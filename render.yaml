@@ -6,17 +6,11 @@ services:
     region: oregon
     envVars:
       - key: SPRING_DATASOURCE_URL
-        fromDatabase:
-          name: diplomemmi
-          property: connectionString
+        sync: false
       - key: SPRING_DATASOURCE_USERNAME
-        fromDatabase:
-          name: diplomemmi
-          property: user
+        sync: false
       - key: SPRING_DATASOURCE_PASSWORD
-        fromDatabase:
-          name: diplomemmi
-          property: password
+        sync: false
       - key: SPRING_JPA_HIBERNATE_DDL_AUTO
         value: update
       - key: APPLICATION_SECURITY_JWT_SECRET_KEY
@@ -28,9 +22,9 @@ services:
       - key: SERVER_PORT
         value: "8080"
 
-databases:
-  - name: diplomemmi
-    databaseName: diplomemmi
-    plan: free
-    region: oregon
+# NOTE: Base de données hébergée sur TiDB Cloud (https://tidbcloud.com)
+# Ajouter manuellement sur Render les variables d'environnement:
+# SPRING_DATASOURCE_URL=jdbc:mysql://your-tidb-host:4000/diplomemmi?useSSL=true&serverTimezone=UTC
+# SPRING_DATASOURCE_USERNAME=your_user@your_cluster
+# SPRING_DATASOURCE_PASSWORD=your_password
     ipAllowList: []
