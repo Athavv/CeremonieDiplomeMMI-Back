@@ -19,19 +19,18 @@ public class GuestbookController {
 
     @GetMapping("/guestbook")
     @PreAuthorize("hasRole('ADMIN')")
-    public List<GuestbookMessage> getAllMessages() {
-        return repository.findAll();
+    public List<GuestbookMessage> getAllMessagesForAdmin() {
+        return repository.findAllByOrderByCreatedAtDesc();
     }
 
     @GetMapping("/public/guestbook")
-    public List<GuestbookMessage> getAllApprovedMessages() {
-        return repository.findByApprovedTrueOrderByCreatedAtDesc();
+    public List<GuestbookMessage> getAllMessages() {
+        return repository.findAllByOrderByCreatedAtDesc();
     }
 
     @PostMapping("/public/guestbook")
     public GuestbookMessage postMessage(@RequestBody GuestbookMessage message) {
         message.setCreatedAt(LocalDateTime.now());
-        message.setApproved(true);
         return repository.save(message);
     }
 

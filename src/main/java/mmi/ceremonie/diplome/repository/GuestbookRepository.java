@@ -5,6 +5,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
 public interface GuestbookRepository extends JpaRepository<GuestbookMessage, Long> {
-    List<GuestbookMessage> findByApprovedTrueOrderByCreatedAtDesc();
-    List<GuestbookMessage> findByApprovedFalseOrderByCreatedAtDesc();
+    List<GuestbookMessage> findAllByOrderByCreatedAtDesc();
 }
