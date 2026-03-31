@@ -20,8 +20,11 @@ public class GuestbookMessage {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String author; 
+    private String author;
+
+    @jakarta.persistence.Column(columnDefinition = "TEXT")
     private String content;
+
     private LocalDateTime createdAt;
 
     @jakarta.persistence.Lob
