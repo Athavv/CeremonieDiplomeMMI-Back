@@ -27,7 +27,6 @@ public class GuestbookMessage {
 
     private LocalDateTime createdAt;
 
-    @jakarta.persistence.Lob
     @jakarta.persistence.Column(columnDefinition = "LONGTEXT")
     private String image;
 }
