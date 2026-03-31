@@ -29,4 +29,6 @@ public class GuestbookMessage {
 
     @jakarta.persistence.Column(columnDefinition = "LONGTEXT")
     private String image;
+
+    private boolean approved = true;
 }
