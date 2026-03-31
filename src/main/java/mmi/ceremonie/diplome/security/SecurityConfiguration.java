@@ -45,16 +45,12 @@ public class SecurityConfiguration {
         configuration.addAllowedOrigin("http://localhost:3000");
         // Production - Vercel
         configuration.addAllowedOrigin("https://ceremonie-diplome-mmi.vercel.app");
-        // Allow any HTTPS origins (Vercel, Netlify, Render previews, etc.)
-        configuration.addAllowedOriginPattern("https://*.vercel.app");
-        configuration.addAllowedOriginPattern("https://*.netlify.app");
-        configuration.addAllowedOriginPattern("https://*.onrender.com");
-        // Fallback: accept all origins (can be tightened later)
-        configuration.addAllowedOriginPattern("*");
+        // Allow any HTTPS from vercel.app subdomains (for preview deployments)
+        configuration.addAllowedOriginPattern("https://.*\\.vercel\\.app");
         
         configuration.addAllowedMethod("*");
         configuration.addAllowedHeader("*");
-        configuration.setAllowCredentials(false); // Must be false when using wildcard origin pattern
+        configuration.setAllowCredentials(true);
         
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
