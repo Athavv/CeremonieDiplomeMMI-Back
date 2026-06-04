@@ -79,13 +79,18 @@ public class GuestbookController {
                 String safeName = author.replaceAll("[^a-zA-Z0-9]", "-")
                         + "_" + System.currentTimeMillis();
 
-                // Upload raw to "Photo sans template" — public URL stored for display
-                imageUrl = googleDriveService.uploadPhotoPublic(
+                // Raw → archive in "Photo sans template"
+                googleDriveService.uploadPhoto(
                     rawBytes, safeName + "_brut.jpg", GoogleDriveService.FOLDER_SANS_TEMPLATE);
-                // Upload template to "Photo avec template" — archive only
+
+                // Template version → "Photo avec template", public URL used for display.
+                // Fall back to the raw photo if no template was provided.
                 if (templateBytes != null) {
-                    googleDriveService.uploadPhoto(
+                    imageUrl = googleDriveService.uploadPhotoPublic(
                         templateBytes, safeName + "_template.jpg", GoogleDriveService.FOLDER_AVEC_TEMPLATE);
+                } else {
+                    imageUrl = googleDriveService.uploadPhotoPublic(
+                        rawBytes, safeName + "_brut.jpg", GoogleDriveService.FOLDER_SANS_TEMPLATE);
                 }
             }
         } catch (Throwable t) {
