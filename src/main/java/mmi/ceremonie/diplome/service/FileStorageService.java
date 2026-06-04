@@ -41,7 +41,7 @@ public class FileStorageService {
                 throw new RuntimeException("Nom de fichier invalide: " + originalFilename);
             }
 
-            String fileExtension = originalFilename.contains(".") 
+            String fileExtension = originalFilename.contains(".")
                     ? originalFilename.substring(originalFilename.lastIndexOf("."))
                     : "";
 
@@ -49,6 +49,24 @@ public class FileStorageService {
             Path targetLocation = getUploadPath(subdirectory).resolve(filename);
             Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
 
+            return subdirectory + "/" + filename;
+        } catch (IOException ex) {
+            throw new RuntimeException("Impossible de stocker le fichier", ex);
+        }
+    }
+
+    public String storeFileBytes(byte[] data, String originalFilename, String subdirectory) {
+        if (data == null || data.length == 0) {
+            return null;
+        }
+        try {
+            String cleanName = StringUtils.cleanPath(originalFilename != null ? originalFilename : "file");
+            String fileExtension = cleanName.contains(".")
+                    ? cleanName.substring(cleanName.lastIndexOf("."))
+                    : ".jpg";
+            String filename = UUID.randomUUID().toString() + fileExtension;
+            Path targetLocation = getUploadPath(subdirectory).resolve(filename);
+            Files.write(targetLocation, data);
             return subdirectory + "/" + filename;
         } catch (IOException ex) {
             throw new RuntimeException("Impossible de stocker le fichier", ex);

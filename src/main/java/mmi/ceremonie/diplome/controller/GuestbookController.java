@@ -51,27 +51,41 @@ public class GuestbookController {
     }
 
     @PostMapping("/public/guestbook/submit")
-    public GuestbookMessage submitWithPhotos(
+    public ResponseEntity<GuestbookMessage> submitWithPhotos(
             @RequestParam String author,
             @RequestParam String content,
             @RequestParam(required = false) MultipartFile photoRaw,
-            @RequestParam(required = false) MultipartFile photoTemplate) throws Exception {
+            @RequestParam(required = false) MultipartFile photoTemplate) {
+
+        if (author == null || author.isBlank() || content == null || content.isBlank()) {
+            return ResponseEntity.badRequest().build();
+        }
 
         String imageUrl = null;
 
         if (photoRaw != null && !photoRaw.isEmpty()) {
+            byte[] rawBytes;
+            byte[] templateBytes = null;
+            try {
+                rawBytes = photoRaw.getBytes();
+                if (photoTemplate != null && !photoTemplate.isEmpty()) {
+                    templateBytes = photoTemplate.getBytes();
+                }
+            } catch (java.io.IOException e) {
+                return ResponseEntity.badRequest().build();
+            }
+
             // Store raw photo locally for display in guestbook
-            String filePath = fileStorageService.storeFile(photoRaw, "gallery");
+            String filePath = fileStorageService.storeFileBytes(
+                rawBytes, photoRaw.getOriginalFilename(), "gallery");
             imageUrl = fileStorageService.getFileUrl(filePath);
 
-            // Upload both versions to Drive (non-blocking — returns null on failure)
+            // Upload both versions to Drive (non-blocking — null on failure)
             String safeName = author.replaceAll("[^a-zA-Z0-9]", "-")
                     + "_" + System.currentTimeMillis();
-            googleDriveService.uploadPhoto(photoRaw.getBytes(), safeName + "_brut.jpg");
-
-            if (photoTemplate != null && !photoTemplate.isEmpty()) {
-                googleDriveService.uploadPhoto(
-                    photoTemplate.getBytes(), safeName + "_template.jpg");
+            googleDriveService.uploadPhoto(rawBytes, safeName + "_brut.jpg");
+            if (templateBytes != null) {
+                googleDriveService.uploadPhoto(templateBytes, safeName + "_template.jpg");
             }
         }
 
@@ -80,7 +94,7 @@ public class GuestbookController {
         message.setContent(content);
         message.setImage(imageUrl);
         message.setCreatedAt(java.time.LocalDateTime.now());
-        return repository.save(message);
+        return ResponseEntity.ok(repository.save(message));
     }
 
     @DeleteMapping("/guestbook/{id}")
