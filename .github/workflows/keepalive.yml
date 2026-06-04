@@ -1,0 +1,20 @@
+name: Keep Render backend awake
+
+# Pings the backend every 10 minutes so Render's free tier does not spin it down
+# (Render sleeps after ~15 min without inbound traffic).
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"   # every 10 minutes
+  workflow_dispatch:           # allows manual run from the Actions tab
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping backend
+        run: |
+          echo "Pinging backend at $(date -u)"
+          curl -fsS --max-time 60 --retry 3 --retry-delay 10 \
+            https://ceremoniediplomemmiback.onrender.com/api/public/ping \
+            && echo " — OK" || echo " — ping failed (backend may be waking up)"
