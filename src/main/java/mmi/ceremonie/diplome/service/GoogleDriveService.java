@@ -1,0 +1,104 @@
+package mmi.ceremonie.diplome.service;
+
+import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
+import com.google.api.client.http.InputStreamContent;
+import com.google.api.client.json.gson.GsonFactory;
+import com.google.api.services.drive.Drive;
+import com.google.api.services.drive.DriveScopes;
+import com.google.api.services.drive.model.File;
+import com.google.auth.http.HttpCredentialsAdapter;
+import com.google.auth.oauth2.GoogleCredentials;
+import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+
+import java.io.ByteArrayInputStream;
+import java.io.FileInputStream;
+import java.io.InputStream;
+import java.util.Collections;
+import java.util.List;
+
+@Service
+@Slf4j
+public class GoogleDriveService {
+
+    @Value("${google.credentials.path:}")
+    private String credentialsPath;
+
+    @Value("${google.credentials.json:}")
+    private String credentialsJson;
+
+    @Value("${google.drive.folder-id:}")
+    private String folderId;
+
+    private Drive drive;
+
+    // Constructor for testing (inject mock Drive directly)
+    GoogleDriveService(Drive drive, String folderId) {
+        this.drive = drive;
+        this.folderId = folderId;
+    }
+
+    // Default no-arg constructor for Spring
+    public GoogleDriveService() {}
+
+    @PostConstruct
+    void init() {
+        if (drive != null) return; // already set by test constructor
+        try {
+            GoogleCredentials credentials = loadCredentials();
+            credentials = credentials.createScoped(
+                Collections.singletonList(DriveScopes.DRIVE_FILE)
+            );
+            drive = new Drive.Builder(
+                GoogleNetHttpTransport.newTrustedTransport(),
+                GsonFactory.getDefaultInstance(),
+                new HttpCredentialsAdapter(credentials)
+            ).setApplicationName("ceremonie-mmi").build();
+            log.info("Google Drive service initialized");
+        } catch (Exception e) {
+            log.error("Failed to initialize Google Drive service: {}", e.getMessage());
+        }
+    }
+
+    private GoogleCredentials loadCredentials() throws Exception {
+        if (credentialsJson != null && !credentialsJson.isBlank()) {
+            InputStream stream = new ByteArrayInputStream(credentialsJson.getBytes());
+            return GoogleCredentials.fromStream(stream);
+        }
+        return GoogleCredentials.fromStream(new FileInputStream(credentialsPath));
+    }
+
+    /**
+     * Upload a photo to the configured Drive folder.
+     * Returns the Drive file ID, or null if the upload fails (non-blocking).
+     */
+    public String uploadPhoto(byte[] data, String filename) {
+        if (drive == null) {
+            log.warn("Drive not initialized, skipping upload of {}", filename);
+            return null;
+        }
+        try {
+            File metadata = new File();
+            metadata.setName(filename);
+            metadata.setParents(List.of(folderId));
+
+            InputStreamContent content = new InputStreamContent(
+                "image/jpeg",
+                new ByteArrayInputStream(data)
+            );
+
+            File created = drive.files()
+                .create(metadata, content)
+                .setFields("id")
+                .execute();
+
+            log.info("Uploaded {} to Drive: {}", filename, created.getId());
+            return created.getId();
+        } catch (Exception e) {
+            log.error("Drive upload failed for {}: {}", filename, e.getMessage());
+            return null;
+        }
+    }
+}
