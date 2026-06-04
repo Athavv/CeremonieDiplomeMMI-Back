@@ -1,6 +1,7 @@
 package mmi.ceremonie.diplome.controller;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import mmi.ceremonie.diplome.model.GuestbookMessage;
 import mmi.ceremonie.diplome.repository.GuestbookRepository;
 import mmi.ceremonie.diplome.service.GoogleDriveService;
@@ -17,6 +18,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
+@Slf4j
 public class GuestbookController {
 
     private final GuestbookRepository repository;
@@ -66,22 +68,17 @@ public class GuestbookController {
 
         String imageUrl = null;
 
-        if (photoRaw != null && !photoRaw.isEmpty()) {
-            byte[] rawBytes;
-            byte[] templateBytes = null;
-            try {
-                rawBytes = photoRaw.getBytes();
-                if (photoTemplate != null && !photoTemplate.isEmpty()) {
-                    templateBytes = photoTemplate.getBytes();
-                }
-            } catch (java.io.IOException e) {
-                return ResponseEntity.badRequest().build();
-            }
+        // Photo + Drive handling is fully optional — any failure must NOT block
+        // saving the guestbook message (the core feature).
+        try {
+            if (googleDriveService != null && photoRaw != null && !photoRaw.isEmpty()) {
+                byte[] rawBytes = photoRaw.getBytes();
+                byte[] templateBytes = (photoTemplate != null && !photoTemplate.isEmpty())
+                        ? photoTemplate.getBytes() : null;
 
-            String safeName = author.replaceAll("[^a-zA-Z0-9]", "-")
-                    + "_" + System.currentTimeMillis();
+                String safeName = author.replaceAll("[^a-zA-Z0-9]", "-")
+                        + "_" + System.currentTimeMillis();
 
-            if (googleDriveService != null) {
                 // Upload raw to "Photo sans template" — public URL stored for display
                 imageUrl = googleDriveService.uploadPhotoPublic(
                     rawBytes, safeName + "_brut.jpg", GoogleDriveService.FOLDER_SANS_TEMPLATE);
@@ -91,14 +88,22 @@ public class GuestbookController {
                         templateBytes, safeName + "_template.jpg", GoogleDriveService.FOLDER_AVEC_TEMPLATE);
                 }
             }
+        } catch (Throwable t) {
+            log.error("Photo/Drive handling failed, saving message without image: {}", t.getMessage());
+            imageUrl = null;
         }
 
-        GuestbookMessage message = new GuestbookMessage();
-        message.setAuthor(author);
-        message.setContent(content);
-        message.setImage(imageUrl);
-        message.setCreatedAt(java.time.LocalDateTime.now());
-        return ResponseEntity.ok(repository.save(message));
+        try {
+            GuestbookMessage message = new GuestbookMessage();
+            message.setAuthor(author);
+            message.setContent(content);
+            message.setImage(imageUrl);
+            message.setCreatedAt(java.time.LocalDateTime.now());
+            return ResponseEntity.ok(repository.save(message));
+        } catch (Throwable t) {
+            log.error("Failed to save guestbook message: {}", t.getMessage(), t);
+            return ResponseEntity.internalServerError().build();
+        }
     }
 
     @DeleteMapping("/guestbook/{id}")

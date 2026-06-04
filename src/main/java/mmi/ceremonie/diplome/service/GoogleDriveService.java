@@ -10,6 +10,8 @@ import com.google.api.services.drive.model.FileList;
 import com.google.api.services.drive.model.Permission;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.auth.oauth2.GoogleCredentials;
+import com.google.auth.oauth2.ServiceAccountCredentials;
+import com.google.auth.oauth2.UserCredentials;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -39,6 +41,16 @@ public class GoogleDriveService {
     @Value("${google.drive.folder-id:}")
     private String folderId;
 
+    // OAuth2 user credentials (preferred — uploads owned by the user, real 15GB quota)
+    @Value("${google.oauth.client-id:}")
+    private String oauthClientId;
+
+    @Value("${google.oauth.client-secret:}")
+    private String oauthClientSecret;
+
+    @Value("${google.oauth.refresh-token:}")
+    private String oauthRefreshToken;
+
     private Drive drive;
     private final Map<String, String> subfolderIds = new HashMap<>();
 
@@ -60,28 +72,40 @@ public class GoogleDriveService {
         if (drive != null) return; // already set by test constructor
         try {
             GoogleCredentials credentials = loadCredentials();
-            credentials = credentials.createScoped(
-                Collections.singletonList(DriveScopes.DRIVE_FILE)
-            );
+            // Service accounts need an explicit scope; OAuth user creds carry their own.
+            if (credentials instanceof ServiceAccountCredentials) {
+                credentials = credentials.createScoped(
+                    Collections.singletonList(DriveScopes.DRIVE));
+            }
             drive = new Drive.Builder(
                 GoogleNetHttpTransport.newTrustedTransport(),
                 GsonFactory.getDefaultInstance(),
                 new HttpCredentialsAdapter(credentials)
             ).setApplicationName("ceremonie-mmi").build();
-            log.info("Google Drive service initialized");
+            log.info("Google Drive service initialized ({})",
+                credentials instanceof UserCredentials ? "OAuth user" : "service account");
         } catch (Throwable e) {
             log.error("Failed to initialize Google Drive service: {}", e.getMessage());
         }
     }
 
     private GoogleCredentials loadCredentials() throws Exception {
+        // Preferred: OAuth2 user credentials — files owned by the user, real quota
+        if (!oauthRefreshToken.isBlank() && !oauthClientId.isBlank() && !oauthClientSecret.isBlank()) {
+            return UserCredentials.newBuilder()
+                .setClientId(oauthClientId)
+                .setClientSecret(oauthClientSecret)
+                .setRefreshToken(oauthRefreshToken)
+                .build();
+        }
+        // Fallback: service account (note: cannot upload files to a personal Drive)
         if (credentialsJson != null && !credentialsJson.isBlank()) {
             return GoogleCredentials.fromStream(
                 new ByteArrayInputStream(credentialsJson.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
         }
         if (credentialsPath == null || credentialsPath.isBlank()) {
             throw new IllegalStateException(
-                "No Google credentials configured. Set google.credentials.json or google.credentials.path.");
+                "No Google credentials configured. Set google.oauth.* or google.credentials.*");
         }
         return GoogleCredentials.fromStream(new FileInputStream(credentialsPath));
     }
