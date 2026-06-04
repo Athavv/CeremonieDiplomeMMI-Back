@@ -4,7 +4,9 @@ import lombok.RequiredArgsConstructor;
 import mmi.ceremonie.diplome.model.GuestbookMessage;
 import mmi.ceremonie.diplome.repository.GuestbookRepository;
 import mmi.ceremonie.diplome.service.GoogleDriveService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.lang.Nullable;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -18,7 +20,10 @@ import java.util.List;
 public class GuestbookController {
 
     private final GuestbookRepository repository;
-    private final GoogleDriveService googleDriveService;
+
+    @Autowired(required = false)
+    @Nullable
+    private GoogleDriveService googleDriveService;
 
     @GetMapping("/guestbook")
     @PreAuthorize("hasRole('ADMIN')")
@@ -73,16 +78,18 @@ public class GuestbookController {
                 return ResponseEntity.badRequest().build();
             }
 
-            // Upload raw to "Photo sans template" — public URL stored for display
             String safeName = author.replaceAll("[^a-zA-Z0-9]", "-")
                     + "_" + System.currentTimeMillis();
-            imageUrl = googleDriveService.uploadPhotoPublic(
-                rawBytes, safeName + "_brut.jpg", GoogleDriveService.FOLDER_SANS_TEMPLATE);
 
-            // Upload template to "Photo avec template" — archive only
-            if (templateBytes != null) {
-                googleDriveService.uploadPhoto(
-                    templateBytes, safeName + "_template.jpg", GoogleDriveService.FOLDER_AVEC_TEMPLATE);
+            if (googleDriveService != null) {
+                // Upload raw to "Photo sans template" — public URL stored for display
+                imageUrl = googleDriveService.uploadPhotoPublic(
+                    rawBytes, safeName + "_brut.jpg", GoogleDriveService.FOLDER_SANS_TEMPLATE);
+                // Upload template to "Photo avec template" — archive only
+                if (templateBytes != null) {
+                    googleDriveService.uploadPhoto(
+                        templateBytes, safeName + "_template.jpg", GoogleDriveService.FOLDER_AVEC_TEMPLATE);
+                }
             }
         }
 
