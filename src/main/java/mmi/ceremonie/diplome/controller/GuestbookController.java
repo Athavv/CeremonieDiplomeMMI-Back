@@ -3,7 +3,6 @@ package mmi.ceremonie.diplome.controller;
 import lombok.RequiredArgsConstructor;
 import mmi.ceremonie.diplome.model.GuestbookMessage;
 import mmi.ceremonie.diplome.repository.GuestbookRepository;
-import mmi.ceremonie.diplome.service.FileStorageService;
 import mmi.ceremonie.diplome.service.GoogleDriveService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -19,7 +18,6 @@ import java.util.List;
 public class GuestbookController {
 
     private final GuestbookRepository repository;
-    private final FileStorageService fileStorageService;
     private final GoogleDriveService googleDriveService;
 
     @GetMapping("/guestbook")
@@ -75,15 +73,12 @@ public class GuestbookController {
                 return ResponseEntity.badRequest().build();
             }
 
-            // Store raw photo locally for display in guestbook
-            String filePath = fileStorageService.storeFileBytes(
-                rawBytes, photoRaw.getOriginalFilename(), "gallery");
-            imageUrl = fileStorageService.getFileUrl(filePath);
-
-            // Upload both versions to Drive (non-blocking — null on failure)
+            // Upload raw to Drive, make public — URL used for guestbook display
             String safeName = author.replaceAll("[^a-zA-Z0-9]", "-")
                     + "_" + System.currentTimeMillis();
-            googleDriveService.uploadPhoto(rawBytes, safeName + "_brut.jpg");
+            imageUrl = googleDriveService.uploadPhotoPublic(rawBytes, safeName + "_brut.jpg");
+
+            // Upload template version to Drive (archive, not displayed)
             if (templateBytes != null) {
                 googleDriveService.uploadPhoto(templateBytes, safeName + "_template.jpg");
             }

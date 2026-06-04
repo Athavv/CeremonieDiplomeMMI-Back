@@ -6,6 +6,7 @@ import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.DriveScopes;
 import com.google.api.services.drive.model.File;
+import com.google.api.services.drive.model.Permission;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.auth.oauth2.GoogleCredentials;
 import jakarta.annotation.PostConstruct;
@@ -72,6 +73,36 @@ public class GoogleDriveService {
                 "No Google credentials configured. Set google.credentials.json or google.credentials.path.");
         }
         return GoogleCredentials.fromStream(new FileInputStream(credentialsPath));
+    }
+
+    /**
+     * Upload a photo and make it publicly viewable.
+     * Returns the public display URL (https://drive.google.com/uc?export=view&id=...), or null on failure.
+     * NOTE: Content-type is hardcoded to image/jpeg; caller must pass JPEG bytes.
+     */
+    public String uploadPhotoPublic(byte[] data, String filename) {
+        String fileId = uploadPhoto(data, filename);
+        return makeFilePublic(fileId);
+    }
+
+    /**
+     * Make an existing Drive file publicly readable.
+     * Returns the public display URL, or null on failure.
+     */
+    public String makeFilePublic(String fileId) {
+        if (drive == null || fileId == null) return null;
+        try {
+            Permission permission = new Permission();
+            permission.setType("anyone");
+            permission.setRole("reader");
+            drive.permissions().create(fileId, permission).execute();
+            String url = "https://drive.google.com/uc?export=view&id=" + fileId;
+            log.info("File {} made public: {}", fileId, url);
+            return url;
+        } catch (Exception e) {
+            log.error("Failed to make file public {}: {}", fileId, e.getMessage());
+            return null;
+        }
     }
 
     /**
