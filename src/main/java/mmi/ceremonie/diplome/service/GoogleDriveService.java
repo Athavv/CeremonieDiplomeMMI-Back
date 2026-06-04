@@ -69,10 +69,6 @@ public class GoogleDriveService {
                 new HttpCredentialsAdapter(credentials)
             ).setApplicationName("ceremonie-mmi").build();
             log.info("Google Drive service initialized");
-            // Pre-create the three subfolders so they exist on first use
-            for (String name : List.of(FOLDER_GALERIE, FOLDER_SANS_TEMPLATE, FOLDER_AVEC_TEMPLATE)) {
-                resolveSubfolder(name);
-            }
         } catch (Exception e) {
             log.error("Failed to initialize Google Drive service: {}", e.getMessage());
         }
