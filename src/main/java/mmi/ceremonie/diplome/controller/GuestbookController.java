@@ -3,9 +3,12 @@ package mmi.ceremonie.diplome.controller;
 import lombok.RequiredArgsConstructor;
 import mmi.ceremonie.diplome.model.GuestbookMessage;
 import mmi.ceremonie.diplome.repository.GuestbookRepository;
+import mmi.ceremonie.diplome.service.FileStorageService;
+import mmi.ceremonie.diplome.service.GoogleDriveService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -16,6 +19,8 @@ import java.util.List;
 public class GuestbookController {
 
     private final GuestbookRepository repository;
+    private final FileStorageService fileStorageService;
+    private final GoogleDriveService googleDriveService;
 
     @GetMapping("/guestbook")
     @PreAuthorize("hasRole('ADMIN')")
@@ -42,6 +47,39 @@ public class GuestbookController {
             message.setImage(null);
         }
         message.setCreatedAt(LocalDateTime.now());
+        return repository.save(message);
+    }
+
+    @PostMapping("/public/guestbook/submit")
+    public GuestbookMessage submitWithPhotos(
+            @RequestParam String author,
+            @RequestParam String content,
+            @RequestParam(required = false) MultipartFile photoRaw,
+            @RequestParam(required = false) MultipartFile photoTemplate) throws Exception {
+
+        String imageUrl = null;
+
+        if (photoRaw != null && !photoRaw.isEmpty()) {
+            // Store raw photo locally for display in guestbook
+            String filePath = fileStorageService.storeFile(photoRaw, "gallery");
+            imageUrl = fileStorageService.getFileUrl(filePath);
+
+            // Upload both versions to Drive (non-blocking — returns null on failure)
+            String safeName = author.replaceAll("[^a-zA-Z0-9]", "-")
+                    + "_" + System.currentTimeMillis();
+            googleDriveService.uploadPhoto(photoRaw.getBytes(), safeName + "_brut.jpg");
+
+            if (photoTemplate != null && !photoTemplate.isEmpty()) {
+                googleDriveService.uploadPhoto(
+                    photoTemplate.getBytes(), safeName + "_template.jpg");
+            }
+        }
+
+        GuestbookMessage message = new GuestbookMessage();
+        message.setAuthor(author);
+        message.setContent(content);
+        message.setImage(imageUrl);
+        message.setCreatedAt(java.time.LocalDateTime.now());
         return repository.save(message);
     }
 
