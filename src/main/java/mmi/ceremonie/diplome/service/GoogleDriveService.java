@@ -150,6 +150,10 @@ public class GoogleDriveService {
             log.warn("Drive not initialized, skipping upload of {}", filename);
             return null;
         }
+        return uploadPhotoAttempt(data, filename, subfolderName, true);
+    }
+
+    private String uploadPhotoAttempt(byte[] data, String filename, String subfolderName, boolean retry) {
         try {
             String targetFolderId = resolveSubfolder(subfolderName);
             File metadata = new File();
@@ -163,6 +167,13 @@ public class GoogleDriveService {
             log.info("Uploaded {} to '{}' ({})", filename, subfolderName, created.getId());
             return created.getId();
         } catch (Throwable e) {
+            // The cached folder may have been deleted in Drive — drop the cache,
+            // recreate the folder and retry once.
+            if (retry) {
+                log.warn("Upload to '{}' failed ({}), recreating folder and retrying", subfolderName, e.getMessage());
+                subfolderIds.remove(subfolderName);
+                return uploadPhotoAttempt(data, filename, subfolderName, false);
+            }
             log.error("Drive upload failed for {}: {}", filename, e.getMessage());
             return null;
         }
