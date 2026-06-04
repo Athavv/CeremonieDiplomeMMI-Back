@@ -63,4 +63,14 @@ class GoogleDriveServiceTest {
 
         assertThat(fileId).isNull();
     }
+
+    @Test
+    void uploadPhoto_returnsNull_whenDriveNotInitialized() {
+        // Arrange: service created with no Drive instance (simulates failed @PostConstruct)
+        GoogleDriveService uninitialised = new GoogleDriveService();
+        // Act: drive field is null
+        String fileId = uninitialised.uploadPhoto("data".getBytes(), "test.jpg");
+        // Assert
+        assertThat(fileId).isNull();
+    }
 }

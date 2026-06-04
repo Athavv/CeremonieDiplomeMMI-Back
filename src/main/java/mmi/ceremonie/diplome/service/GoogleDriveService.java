@@ -64,8 +64,12 @@ public class GoogleDriveService {
 
     private GoogleCredentials loadCredentials() throws Exception {
         if (credentialsJson != null && !credentialsJson.isBlank()) {
-            InputStream stream = new ByteArrayInputStream(credentialsJson.getBytes());
-            return GoogleCredentials.fromStream(stream);
+            return GoogleCredentials.fromStream(
+                new ByteArrayInputStream(credentialsJson.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+        }
+        if (credentialsPath == null || credentialsPath.isBlank()) {
+            throw new IllegalStateException(
+                "No Google credentials configured. Set google.credentials.json or google.credentials.path.");
         }
         return GoogleCredentials.fromStream(new FileInputStream(credentialsPath));
     }
@@ -73,6 +77,7 @@ public class GoogleDriveService {
     /**
      * Upload a photo to the configured Drive folder.
      * Returns the Drive file ID, or null if the upload fails (non-blocking).
+     * NOTE: Content-type is hardcoded to image/jpeg; caller must pass JPEG bytes.
      */
     public String uploadPhoto(byte[] data, String filename) {
         if (drive == null) {
