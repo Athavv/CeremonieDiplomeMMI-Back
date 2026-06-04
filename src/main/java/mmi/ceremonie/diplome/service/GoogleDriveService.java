@@ -46,6 +46,10 @@ public class GoogleDriveService {
     GoogleDriveService(Drive drive, String folderId) {
         this.drive = drive;
         this.folderId = folderId;
+        // Pre-populate subfolder cache so tests don't trigger Drive list/create calls
+        subfolderIds.put(FOLDER_GALERIE, folderId);
+        subfolderIds.put(FOLDER_SANS_TEMPLATE, folderId);
+        subfolderIds.put(FOLDER_AVEC_TEMPLATE, folderId);
     }
 
     // Default no-arg constructor for Spring

@@ -46,7 +46,8 @@ class GoogleDriveServiceTest {
 
         String fileId = service.uploadPhoto(
             "Jean Dupont".getBytes(),
-            "jean-dupont_brut_123.jpg"
+            "jean-dupont_brut_123.jpg",
+            GoogleDriveService.FOLDER_SANS_TEMPLATE
         );
 
         assertThat(fileId).isEqualTo("drive-file-id-123");
@@ -59,18 +60,23 @@ class GoogleDriveServiceTest {
         when(mockCreate.setFields(anyString())).thenReturn(mockCreate);
         when(mockCreate.execute()).thenThrow(new IOException("Drive unavailable"));
 
-        String fileId = service.uploadPhoto("data".getBytes(), "test.jpg");
+        String fileId = service.uploadPhoto(
+            "data".getBytes(),
+            "test.jpg",
+            GoogleDriveService.FOLDER_SANS_TEMPLATE
+        );
 
         assertThat(fileId).isNull();
     }
 
     @Test
     void uploadPhoto_returnsNull_whenDriveNotInitialized() {
-        // Arrange: service created with no Drive instance (simulates failed @PostConstruct)
         GoogleDriveService uninitialised = new GoogleDriveService();
-        // Act: drive field is null
-        String fileId = uninitialised.uploadPhoto("data".getBytes(), "test.jpg");
-        // Assert
+        String fileId = uninitialised.uploadPhoto(
+            "data".getBytes(),
+            "test.jpg",
+            GoogleDriveService.FOLDER_SANS_TEMPLATE
+        );
         assertThat(fileId).isNull();
     }
 }
