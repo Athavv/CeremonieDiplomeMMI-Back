@@ -3,6 +3,7 @@ package mmi.ceremonie.diplome.security;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -28,6 +29,8 @@ public class SecurityConfiguration {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**", "/api/public/**", "/api/files/**").permitAll()
+                        // Public read access to the gallery (POST/DELETE stay protected)
+                        .requestMatchers(HttpMethod.GET, "/api/gallery").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -40,18 +43,13 @@ public class SecurityConfiguration {
     @Bean
     public UrlBasedCorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // Local development
-        configuration.addAllowedOrigin("http://localhost:5173");
-        configuration.addAllowedOrigin("http://localhost:3000");
-        // Production - Vercel
-        configuration.addAllowedOrigin("https://ceremonie-diplome-mmi.vercel.app");
-        // Allow any HTTPS from vercel.app subdomains (for preview deployments)
-        configuration.addAllowedOriginPattern("https://.*\\.vercel\\.app");
-        
+        // Auth uses JWT Bearer tokens (Authorization header), not cookies, so
+        // credentials are not needed — this lets us allow any origin safely.
+        configuration.addAllowedOriginPattern("*");
         configuration.addAllowedMethod("*");
         configuration.addAllowedHeader("*");
-        configuration.setAllowCredentials(true);
-        
+        configuration.setAllowCredentials(false);
+
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
