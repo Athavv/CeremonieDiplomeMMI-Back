@@ -48,8 +48,14 @@ public class FileController {
             @PathVariable String subdirectory,
             @PathVariable String filename) {
         String filePath = subdirectory + "/" + filename;
-        Resource resource = fileStorageService.loadFileAsResource(filePath);
-        
+        Resource resource;
+        try {
+            resource = fileStorageService.loadFileAsResource(filePath);
+        } catch (RuntimeException e) {
+            // Old local file no longer exists (Render wiped ephemeral storage)
+            return ResponseEntity.notFound().build();
+        }
+
         String contentType = "application/octet-stream";
         try {
             String originalContentType = resource.getURL().openConnection().getContentType();

@@ -188,7 +188,9 @@ public class GoogleDriveService {
             permission.setType("anyone");
             permission.setRole("reader");
             drive.permissions().create(fileId, permission).execute();
-            String url = "https://drive.google.com/uc?export=view&id=" + fileId;
+            // lh3.googleusercontent.com serves the image directly (works in <img>);
+            // the old uc?export=view endpoint now returns 403 for hotlinking.
+            String url = "https://lh3.googleusercontent.com/d/" + fileId;
             log.info("File {} made public: {}", fileId, url);
             return url;
         } catch (Throwable e) {
