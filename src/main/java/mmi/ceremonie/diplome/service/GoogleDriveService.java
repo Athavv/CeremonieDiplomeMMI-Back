@@ -69,7 +69,7 @@ public class GoogleDriveService {
                 new HttpCredentialsAdapter(credentials)
             ).setApplicationName("ceremonie-mmi").build();
             log.info("Google Drive service initialized");
-        } catch (Exception e) {
+        } catch (Throwable e) {
             log.error("Failed to initialize Google Drive service: {}", e.getMessage());
         }
     }
@@ -111,7 +111,7 @@ public class GoogleDriveService {
             }
             subfolderIds.put(name, id);
             return id;
-        } catch (Exception e) {
+        } catch (Throwable e) {
             log.error("Could not resolve subfolder '{}', using root folder: {}", name, e.getMessage());
             return folderId;
         }
@@ -138,7 +138,7 @@ public class GoogleDriveService {
             File created = drive.files().create(metadata, content).setFields("id").execute();
             log.info("Uploaded {} to '{}' ({})", filename, subfolderName, created.getId());
             return created.getId();
-        } catch (Exception e) {
+        } catch (Throwable e) {
             log.error("Drive upload failed for {}: {}", filename, e.getMessage());
             return null;
         }
@@ -167,7 +167,7 @@ public class GoogleDriveService {
             String url = "https://drive.google.com/uc?export=view&id=" + fileId;
             log.info("File {} made public: {}", fileId, url);
             return url;
-        } catch (Exception e) {
+        } catch (Throwable e) {
             log.error("Failed to make file public {}: {}", fileId, e.getMessage());
             return null;
         }
