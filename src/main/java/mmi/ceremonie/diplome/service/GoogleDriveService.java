@@ -6,6 +6,7 @@ import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.DriveScopes;
 import com.google.api.services.drive.model.File;
+import com.google.api.services.drive.model.FileList;
 import com.google.api.services.drive.model.Permission;
 import com.google.auth.http.HttpCredentialsAdapter;
 import com.google.auth.oauth2.GoogleCredentials;
@@ -16,13 +17,18 @@ import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
-import java.io.InputStream;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @Slf4j
 public class GoogleDriveService {
+
+    public static final String FOLDER_GALERIE       = "Galerie";
+    public static final String FOLDER_SANS_TEMPLATE = "Photo sans template";
+    public static final String FOLDER_AVEC_TEMPLATE = "Photo avec template";
 
     @Value("${google.credentials.path:}")
     private String credentialsPath;
@@ -34,6 +40,7 @@ public class GoogleDriveService {
     private String folderId;
 
     private Drive drive;
+    private final Map<String, String> subfolderIds = new HashMap<>();
 
     // Constructor for testing (inject mock Drive directly)
     GoogleDriveService(Drive drive, String folderId) {
@@ -58,6 +65,10 @@ public class GoogleDriveService {
                 new HttpCredentialsAdapter(credentials)
             ).setApplicationName("ceremonie-mmi").build();
             log.info("Google Drive service initialized");
+            // Pre-create the three subfolders so they exist on first use
+            for (String name : List.of(FOLDER_GALERIE, FOLDER_SANS_TEMPLATE, FOLDER_AVEC_TEMPLATE)) {
+                resolveSubfolder(name);
+            }
         } catch (Exception e) {
             log.error("Failed to initialize Google Drive service: {}", e.getMessage());
         }
@@ -76,18 +87,75 @@ public class GoogleDriveService {
     }
 
     /**
-     * Upload a photo and make it publicly viewable.
-     * Returns the public display URL (https://drive.google.com/uc?export=view&id=...), or null on failure.
-     * NOTE: Content-type is hardcoded to image/jpeg; caller must pass JPEG bytes.
+     * Find or create a subfolder inside the root Drive folder. Result is cached.
+     * Returns the subfolder ID, or the root folderId on failure.
      */
-    public String uploadPhotoPublic(byte[] data, String filename) {
-        String fileId = uploadPhoto(data, filename);
+    private String resolveSubfolder(String name) {
+        if (subfolderIds.containsKey(name)) return subfolderIds.get(name);
+        try {
+            String query = String.format(
+                "name='%s' and '%s' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false",
+                name, folderId);
+            FileList result = drive.files().list().setQ(query).setFields("files(id)").execute();
+            String id;
+            if (!result.getFiles().isEmpty()) {
+                id = result.getFiles().get(0).getId();
+                log.info("Found Drive subfolder '{}': {}", name, id);
+            } else {
+                File folderMeta = new File();
+                folderMeta.setName(name);
+                folderMeta.setMimeType("application/vnd.google-apps.folder");
+                folderMeta.setParents(List.of(folderId));
+                id = drive.files().create(folderMeta).setFields("id").execute().getId();
+                log.info("Created Drive subfolder '{}': {}", name, id);
+            }
+            subfolderIds.put(name, id);
+            return id;
+        } catch (Exception e) {
+            log.error("Could not resolve subfolder '{}', using root folder: {}", name, e.getMessage());
+            return folderId;
+        }
+    }
+
+    /**
+     * Upload a photo to a named subfolder (FOLDER_GALERIE, FOLDER_SANS_TEMPLATE, FOLDER_AVEC_TEMPLATE).
+     * Returns the Drive file ID, or null on failure.
+     */
+    public String uploadPhoto(byte[] data, String filename, String subfolderName) {
+        if (drive == null) {
+            log.warn("Drive not initialized, skipping upload of {}", filename);
+            return null;
+        }
+        try {
+            String targetFolderId = resolveSubfolder(subfolderName);
+            File metadata = new File();
+            metadata.setName(filename);
+            metadata.setParents(List.of(targetFolderId));
+
+            InputStreamContent content = new InputStreamContent(
+                "image/jpeg", new ByteArrayInputStream(data));
+
+            File created = drive.files().create(metadata, content).setFields("id").execute();
+            log.info("Uploaded {} to '{}' ({})", filename, subfolderName, created.getId());
+            return created.getId();
+        } catch (Exception e) {
+            log.error("Drive upload failed for {}: {}", filename, e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Upload a photo to a named subfolder and make it publicly viewable.
+     * Returns the public display URL, or null on failure.
+     */
+    public String uploadPhotoPublic(byte[] data, String filename, String subfolderName) {
+        String fileId = uploadPhoto(data, filename, subfolderName);
         return makeFilePublic(fileId);
     }
 
     /**
      * Make an existing Drive file publicly readable.
-     * Returns the public display URL, or null on failure.
+     * Returns the public display URL (https://drive.google.com/uc?export=view&id=...), or null on failure.
      */
     public String makeFilePublic(String fileId) {
         if (drive == null || fileId == null) return null;
@@ -101,39 +169,6 @@ public class GoogleDriveService {
             return url;
         } catch (Exception e) {
             log.error("Failed to make file public {}: {}", fileId, e.getMessage());
-            return null;
-        }
-    }
-
-    /**
-     * Upload a photo to the configured Drive folder.
-     * Returns the Drive file ID, or null if the upload fails (non-blocking).
-     * NOTE: Content-type is hardcoded to image/jpeg; caller must pass JPEG bytes.
-     */
-    public String uploadPhoto(byte[] data, String filename) {
-        if (drive == null) {
-            log.warn("Drive not initialized, skipping upload of {}", filename);
-            return null;
-        }
-        try {
-            File metadata = new File();
-            metadata.setName(filename);
-            metadata.setParents(List.of(folderId));
-
-            InputStreamContent content = new InputStreamContent(
-                "image/jpeg",
-                new ByteArrayInputStream(data)
-            );
-
-            File created = drive.files()
-                .create(metadata, content)
-                .setFields("id")
-                .execute();
-
-            log.info("Uploaded {} to Drive: {}", filename, created.getId());
-            return created.getId();
-        } catch (Exception e) {
-            log.error("Drive upload failed for {}: {}", filename, e.getMessage());
             return null;
         }
     }

@@ -73,14 +73,16 @@ public class GuestbookController {
                 return ResponseEntity.badRequest().build();
             }
 
-            // Upload raw to Drive, make public — URL used for guestbook display
+            // Upload raw to "Photo sans template" — public URL stored for display
             String safeName = author.replaceAll("[^a-zA-Z0-9]", "-")
                     + "_" + System.currentTimeMillis();
-            imageUrl = googleDriveService.uploadPhotoPublic(rawBytes, safeName + "_brut.jpg");
+            imageUrl = googleDriveService.uploadPhotoPublic(
+                rawBytes, safeName + "_brut.jpg", GoogleDriveService.FOLDER_SANS_TEMPLATE);
 
-            // Upload template version to Drive (archive, not displayed)
+            // Upload template to "Photo avec template" — archive only
             if (templateBytes != null) {
-                googleDriveService.uploadPhoto(templateBytes, safeName + "_template.jpg");
+                googleDriveService.uploadPhoto(
+                    templateBytes, safeName + "_template.jpg", GoogleDriveService.FOLDER_AVEC_TEMPLATE);
             }
         }
 
