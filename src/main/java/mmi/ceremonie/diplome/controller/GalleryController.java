@@ -38,6 +38,13 @@ public class GalleryController {
         return googleDriveService.listImages(GoogleDriveService.FOLDER_GALERIE);
     }
 
+    /** Temporary diagnostic — shows what's actually under the Drive root folder. */
+    @GetMapping("/drive-debug")
+    public List<Map<String, String>> getDriveDebug() {
+        if (googleDriveService == null) return List.of(Map.of("error", "drive not configured"));
+        return googleDriveService.debugRootContents();
+    }
+
     @PostMapping
     public GalleryImage addImage(@RequestBody GalleryImage image) {
         return repository.save(image);

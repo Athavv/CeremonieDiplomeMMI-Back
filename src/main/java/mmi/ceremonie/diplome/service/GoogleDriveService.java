@@ -264,6 +264,34 @@ public class GoogleDriveService {
         }
     }
 
+    /** Diagnostic: lists everything directly under the configured root folder. */
+    public List<Map<String, String>> debugRootContents() {
+        List<Map<String, String>> out = new ArrayList<>();
+        if (drive == null) {
+            out.add(Map.of("error", "drive not initialized"));
+            return out;
+        }
+        out.add(Map.of("rootFolderId", folderId));
+        try {
+            FileList result = drive.files().list()
+                    .setQ("'" + folderId + "' in parents and trashed=false")
+                    .setFields("files(id,name,mimeType)")
+                    .setPageSize(1000)
+                    .execute();
+            for (File f : result.getFiles()) {
+                Map<String, String> item = new HashMap<>();
+                item.put("id", f.getId());
+                item.put("name", f.getName());
+                item.put("type", f.getMimeType());
+                out.add(item);
+            }
+            out.add(Map.of("totalUnderRoot", String.valueOf(result.getFiles().size())));
+        } catch (Throwable e) {
+            out.add(Map.of("error", String.valueOf(e.getMessage())));
+        }
+        return out;
+    }
+
     /** Grant public read access to a file once (cached to avoid repeat API calls). */
     private void ensurePublic(String fileId) {
         if (fileId == null || publicFileIds.contains(fileId)) return;
