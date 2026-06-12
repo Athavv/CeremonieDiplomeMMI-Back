@@ -222,25 +222,41 @@ public class GoogleDriveService {
     public List<Map<String, String>> listImages(String subfolderName) {
         if (drive == null) return List.of();
         try {
-            String targetFolderId = resolveSubfolder(subfolderName);
-            String query = "'" + targetFolderId + "' in parents"
-                    + " and mimeType contains 'image/' and trashed=false";
-            FileList result = drive.files().list()
-                    .setQ(query)
-                    .setFields("files(id,name,createdTime)")
-                    .setOrderBy("createdTime desc")
-                    .setPageSize(1000)
-                    .execute();
+            // Collect candidate folders: the root itself + every folder named
+            // <subfolderName> under the root (duplicates can exist after
+            // delete/recreate cycles). Images may sit directly in the shared
+            // root or inside a "Galerie" subfolder.
+            List<String> folderIds = new ArrayList<>();
+            folderIds.add(folderId);
 
+            String folderQuery = "name='" + subfolderName + "' and '" + folderId + "' in parents"
+                    + " and mimeType='application/vnd.google-apps.folder' and trashed=false";
+            FileList folders = drive.files().list()
+                    .setQ(folderQuery).setFields("files(id)").execute();
+            for (File folder : folders.getFiles()) folderIds.add(folder.getId());
+
+            Set<String> seen = ConcurrentHashMap.newKeySet();
             List<Map<String, String>> images = new ArrayList<>();
-            for (File f : result.getFiles()) {
-                ensurePublic(f.getId());
-                Map<String, String> item = new HashMap<>();
-                item.put("id", f.getId());
-                item.put("name", f.getName());
-                item.put("url", "https://lh3.googleusercontent.com/d/" + f.getId());
-                images.add(item);
+            for (String fid : folderIds) {
+                String query = "'" + fid + "' in parents"
+                        + " and mimeType contains 'image/' and trashed=false";
+                FileList result = drive.files().list()
+                        .setQ(query)
+                        .setFields("files(id,name,createdTime)")
+                        .setOrderBy("createdTime desc")
+                        .setPageSize(1000)
+                        .execute();
+                for (File f : result.getFiles()) {
+                    if (!seen.add(f.getId())) continue; // dedupe
+                    ensurePublic(f.getId());
+                    Map<String, String> item = new HashMap<>();
+                    item.put("id", f.getId());
+                    item.put("name", f.getName());
+                    item.put("url", "https://lh3.googleusercontent.com/d/" + f.getId());
+                    images.add(item);
+                }
             }
+            log.info("Listed {} gallery image(s) from {} folder(s)", images.size(), folderIds.size());
             return images;
         } catch (Throwable e) {
             log.error("Failed to list images in '{}': {}", subfolderName, e.getMessage());
