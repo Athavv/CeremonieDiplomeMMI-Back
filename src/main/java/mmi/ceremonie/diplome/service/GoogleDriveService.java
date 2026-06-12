@@ -19,10 +19,13 @@ import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 @Slf4j
@@ -53,6 +56,7 @@ public class GoogleDriveService {
 
     private Drive drive;
     private final Map<String, String> subfolderIds = new HashMap<>();
+    private final Set<String> publicFileIds = ConcurrentHashMap.newKeySet();
 
     // Constructor for testing (inject mock Drive directly)
     GoogleDriveService(Drive drive, String folderId) {
@@ -203,10 +207,58 @@ public class GoogleDriveService {
             // the old uc?export=view endpoint now returns 403 for hotlinking.
             String url = "https://lh3.googleusercontent.com/d/" + fileId;
             log.info("File {} made public: {}", fileId, url);
+            publicFileIds.add(fileId);
             return url;
         } catch (Throwable e) {
             log.error("Failed to make file public {}: {}", fileId, e.getMessage());
             return null;
         }
+    }
+
+    /**
+     * List all image files in a named subfolder (e.g. FOLDER_GALERIE), making each
+     * publicly viewable. Returns a list of maps with "id", "name" and public "url".
+     */
+    public List<Map<String, String>> listImages(String subfolderName) {
+        if (drive == null) return List.of();
+        try {
+            String targetFolderId = resolveSubfolder(subfolderName);
+            String query = "'" + targetFolderId + "' in parents"
+                    + " and mimeType contains 'image/' and trashed=false";
+            FileList result = drive.files().list()
+                    .setQ(query)
+                    .setFields("files(id,name,createdTime)")
+                    .setOrderBy("createdTime desc")
+                    .setPageSize(1000)
+                    .execute();
+
+            List<Map<String, String>> images = new ArrayList<>();
+            for (File f : result.getFiles()) {
+                ensurePublic(f.getId());
+                Map<String, String> item = new HashMap<>();
+                item.put("id", f.getId());
+                item.put("name", f.getName());
+                item.put("url", "https://lh3.googleusercontent.com/d/" + f.getId());
+                images.add(item);
+            }
+            return images;
+        } catch (Throwable e) {
+            log.error("Failed to list images in '{}': {}", subfolderName, e.getMessage());
+            return List.of();
+        }
+    }
+
+    /** Grant public read access to a file once (cached to avoid repeat API calls). */
+    private void ensurePublic(String fileId) {
+        if (fileId == null || publicFileIds.contains(fileId)) return;
+        try {
+            Permission permission = new Permission();
+            permission.setType("anyone");
+            permission.setRole("reader");
+            drive.permissions().create(fileId, permission).execute();
+        } catch (Exception ignored) {
+            // File may already be public — ignore
+        }
+        publicFileIds.add(fileId);
     }
 }

@@ -30,7 +30,7 @@ public class SecurityConfiguration {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**", "/api/public/**", "/api/files/**").permitAll()
                         // Public read access to the gallery (POST/DELETE stay protected)
-                        .requestMatchers(HttpMethod.GET, "/api/gallery").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/gallery", "/api/gallery/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
