@@ -35,6 +35,16 @@ public class GalleryController {
     @GetMapping("/drive")
     public List<Map<String, String>> getDriveImages() {
         if (googleDriveService == null) return List.of();
+        // Public (not logged in) gallery shows the curated "accesslibre" Drive folder
+        return googleDriveService.listImages(GoogleDriveService.FOLDER_ACCESSLIBRE);
+    }
+
+    /**
+     * Full gallery for authenticated users — the complete "Galerie" Drive folder.
+     */
+    @GetMapping("/drive-all")
+    public List<Map<String, String>> getAllDriveImages() {
+        if (googleDriveService == null) return List.of();
         return googleDriveService.listImages(GoogleDriveService.FOLDER_GALERIE);
     }
 

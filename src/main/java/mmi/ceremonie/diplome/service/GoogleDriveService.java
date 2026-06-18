@@ -34,6 +34,7 @@ public class GoogleDriveService {
     public static final String FOLDER_GALERIE       = "Galerie";
     public static final String FOLDER_SANS_TEMPLATE = "Photo sans template";
     public static final String FOLDER_AVEC_TEMPLATE = "Photo avec template";
+    public static final String FOLDER_ACCESSLIBRE   = "accesslibre";
 
     @Value("${google.credentials.path:}")
     private String credentialsPath;

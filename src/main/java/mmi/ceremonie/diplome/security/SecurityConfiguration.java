@@ -29,8 +29,9 @@ public class SecurityConfiguration {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**", "/api/public/**", "/api/files/**").permitAll()
-                        // Public read access to the gallery (POST/DELETE stay protected)
-                        .requestMatchers(HttpMethod.GET, "/api/gallery", "/api/gallery/**").permitAll()
+                        // Public read access to the gallery (POST/DELETE and the
+                        // full /drive-all listing stay protected for logged-in users)
+                        .requestMatchers(HttpMethod.GET, "/api/gallery", "/api/gallery/drive").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
