@@ -31,7 +31,7 @@ public class SecurityConfiguration {
                         .requestMatchers("/api/auth/**", "/api/public/**", "/api/files/**").permitAll()
                         // Public read access to the gallery (POST/DELETE and the
                         // full /drive-all listing stay protected for logged-in users)
-                        .requestMatchers(HttpMethod.GET, "/api/gallery", "/api/gallery/drive").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/gallery", "/api/gallery/drive", "/api/gallery/drive-debug").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

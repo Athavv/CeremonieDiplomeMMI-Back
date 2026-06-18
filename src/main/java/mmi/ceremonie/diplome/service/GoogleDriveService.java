@@ -34,7 +34,7 @@ public class GoogleDriveService {
     public static final String FOLDER_GALERIE       = "Galerie";
     public static final String FOLDER_SANS_TEMPLATE = "Photo sans template";
     public static final String FOLDER_AVEC_TEMPLATE = "Photo avec template";
-    public static final String FOLDER_ACCESSLIBRE   = "accesslibre";
+    public static final String FOLDER_ACCESSLIBRE   = "acceslibre";
 
     @Value("${google.credentials.path:}")
     private String credentialsPath;
@@ -230,11 +230,18 @@ public class GoogleDriveService {
             List<String> folderIds = new ArrayList<>();
             folderIds.add(folderId);
 
-            String folderQuery = "name='" + subfolderName + "' and '" + folderId + "' in parents"
+            // List ALL subfolders under root and match the target name
+            // case/space/accent-insensitively (robust to "Accès libre", etc.).
+            String folderQuery = "'" + folderId + "' in parents"
                     + " and mimeType='application/vnd.google-apps.folder' and trashed=false";
             FileList folders = drive.files().list()
-                    .setQ(folderQuery).setFields("files(id)").execute();
-            for (File folder : folders.getFiles()) folderIds.add(folder.getId());
+                    .setQ(folderQuery).setFields("files(id,name)").setPageSize(1000).execute();
+            String target = normalizeName(subfolderName);
+            for (File folder : folders.getFiles()) {
+                if (normalizeName(folder.getName()).equals(target)) {
+                    folderIds.add(folder.getId());
+                }
+            }
 
             Set<String> seen = ConcurrentHashMap.newKeySet();
             List<Map<String, String>> images = new ArrayList<>();
@@ -291,6 +298,14 @@ public class GoogleDriveService {
             out.add(Map.of("error", String.valueOf(e.getMessage())));
         }
         return out;
+    }
+
+    /** Normalize a folder name for tolerant matching: lowercase, no accents/spaces/punctuation. */
+    private static String normalizeName(String name) {
+        if (name == null) return "";
+        String noAccents = java.text.Normalizer.normalize(name, java.text.Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "");
+        return noAccents.toLowerCase().replaceAll("[^a-z0-9]", "");
     }
 
     /** Grant public read access to a file once (cached to avoid repeat API calls). */
